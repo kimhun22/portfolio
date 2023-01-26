@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="hm.site.projectName.board.notice.mapper.NoticeMapper">
+
+	<sql id="WHERE_selectNoticeList">
+		<if test="searchJobTyCode != null and searchJobTyCode != ''">
+			AND BBS.JOB_TY_CODE = #{searchJobTyCode}
+		</if>
+		<if test="searchKeyword != null and searchKeyword != ''">
+			<choose>
+			<when test="searchCondition == 'nttSj'">
+				AND UPPER(NTT_SJ) LIKE CONCAT('%' , #{searchKeyword} , '%')
+
+			</when>
+			<when test="searchCondition == 'kwrd'">
+				AND (
+					UPPER(KWRD_1) LIKE CONCAT('%' , #{searchKeyword} , '%')
+					OR UPPER(KWRD_2) LIKE CONCAT('%' , #{searchKeyword} , '%')
+					OR UPPER(KWRD_3) LIKE CONCAT('%' , #{searchKeyword} , '%')
+					OR UPPER(KWRD_4) LIKE CONCAT('%' , #{searchKeyword} , '%')
+					OR UPPER(KWRD_5) LIKE CONCAT('%' , #{searchKeyword} , '%')
+				)
+			</when>
+			</choose>
+		</if>
+         <if test="startDate != null and startDate != ''">
+             AND  DATE_FORMAT(BBS.REGIST_DT, '%Y-%m-%d') <![CDATA[>=]]> #{startDate}
+
+         </if>
+         <if test="endDate != null and endDate != ''">
+             AND  DATE_FORMAT(BBS.REGIST_DT, '%Y-%m-%d') <![CDATA[<=]]> #{endDate}
+         </if>
+         <if test="registDate != null and registDate != ''">
+             AND  DATE_FORMAT(BBS.REGIST_DT, '%Y%m') = #{registDate}
+         </if>
+	</sql>
+
+	<!-- 감사 사례 목록 갯수 조회 -->
+	<select id="selectNoticeListCnt" parameterType="RaBbsTbExVO" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM
+			RA_BBS_TB BBS
+		WHERE
+			BBS.BBS_KND_CODE = '05'
+			<include refid="WHERE_selectNoticeList" />
+	</select>
+
+	<!-- 감사 사례 목록 조회 -->
+	<select id="selectNoticeList" parameterType="RaBbsTbExVO" resultType="RaBbsTbExVO">
+		SELECT
+			A.*
+		FROM (
+			SELECT
+				ROW_NUMBER() OVER (ORDER BY BBS.NTT_NO DESC) AS ROW_NUM
+				, BBS.BBS_KND_CODE
+				, BBS.NTT_NO
+				, BBS.NTT_SJ
+				, BBS.RELATE_INSTT_NM
+				, DATE_FORMAT(BBS.REGIST_DT, '%Y%m%d') as NTT_DE
+				, BBS.REGIST_USER_ID
+				, REG_USER.DEPT_NM
+				, DATE_FORMAT(BBS.REGIST_DT, '%Y-%m-%d') as REGIST_DT
+				, BBS.UPDATE_DT
+			FROM
+				RA_BBS_TB BBS
+				INNER JOIN RA_USER_TB REG_USER
+					ON BBS.REGIST_USER_ID = REG_USER.LOGIN_ID
+			WHERE
+				BBS.BBS_KND_CODE = '05'
+				<include refid="WHERE_selectNoticeList" />
+		) A
+		WHERE
+			A.ROW_NUM BETWEEN #{firstIndex} AND #{lastIndex}
+	</select>
+
+	<!-- 감사 사례 단일 조회 -->
+	<select id="selectNotice" parameterType="RaBbsTbExVO" resultType="RaBbsTbExVO">
+		SELECT
+			BBS.BBS_KND_CODE
+			, BBS.NTT_NO
+			, BBS.NTT_SJ
+			, BBS.RELATE_INSTT_NM
+			, BBS.NTT_DE
+			, BBS.NTT_CN_1
+			, BBS.KWRD_1
+			, BBS.KWRD_2
+			, BBS.KWRD_3
+			, BBS.KWRD_4
+			, BBS.KWRD_5
+			, BBS.ATCH_FILE_NO
+			, BBS.REGIST_USER_ID
+			, REG_USER.USER_NM
+			, BBS.REGIST_DT
+			, BBS.UPDATE_DT
+		FROM
+			RA_BBS_TB BBS
+			INNER JOIN RA_USER_TB REG_USER
+				ON BBS.REGIST_USER_ID = REG_USER.LOGIN_ID
+		WHERE
+			BBS.BBS_KND_CODE = '05'
+			AND BBS.NTT_NO = #{nttNo}
+	</select>
+
+	<!-- 감사 사례 등록 -->
+	<insert id="insertNotice" parameterType="RaBbsTbExVO">
+		<selectKey keyProperty="nttNo" resultType="Integer" order="BEFORE">
+			select ifnull(max(NTT_NO), 0 )+1 NTT_NO from RA_BBS_TB WHERE	BBS_KND_CODE = '05'
+        </selectKey>
+
+		INSERT INTO RA_BBS_TB (
+			BBS_KND_CODE
+			, NTT_NO
+			, NTT_SJ
+			, RELATE_INSTT_NM
+			, NTT_DE
+			, NTT_CN_1
+			, KWRD_1
+			, KWRD_2
+			, KWRD_3
+			, KWRD_4
+			, KWRD_5
+			, KWRD_6
+			, KWRD_7
+			, KWRD_8
+			, KWRD_9
+			, KWRD_10
+			, ATCH_FILE_NO
+			, REGIST_USER_ID
+			, UPDATE_USER_ID
+			, REGIST_DT
+			, UPDATE_DT
+		) VALUES (
+			'05'
+			, #{nttNo}
+			, #{nttSj}
+			, #{relateInsttNm}
+			, REPLACE(#{nttDe}, '-', '')
+			, #{nttCn1}
+			, #{kwrd1}
+			, #{kwrd2}
+			, #{kwrd3}
+			, #{kwrd4}
+			, #{kwrd5}
+			, #{kwrd6}
+			, #{kwrd7}
+			, #{kwrd8}
+			, #{kwrd9}
+			, #{kwrd10}
+			, #{atchFileNo}
+			, #{registUserId}
+			, #{updateUserId}
+			, NOW()
+			, NOW()
+		)
+	</insert>
+
+	<!-- 감사 사례 수정 -->
+	<update id="updateNotice" parameterType="RaBbsTbExVO">
+		UPDATE
+			RA_BBS_TB
+		SET
+			NTT_SJ = #{nttSj}
+			, RELATE_INSTT_NM = #{relateInsttNm}
+			, NTT_DE = REPLACE(#{nttDe}, '-', '')
+			, NTT_CN_1 = #{nttCn1}
+			, KWRD_1 = #{kwrd1}
+			, KWRD_2 = #{kwrd2}
+			, KWRD_3 = #{kwrd3}
+			, KWRD_4 = #{kwrd4}
+			, KWRD_5 = #{kwrd5}
+			, KWRD_6 = #{kwrd6}
+			, KWRD_7 = #{kwrd7}
+			, KWRD_8 = #{kwrd8}
+			, KWRD_9 = #{kwrd9}
+			, KWRD_10 = #{kwrd10}
+			, ATCH_FILE_NO = #{atchFileNo}
+			, UPDATE_USER_ID = #{updateUserId}
+			, UPDATE_DT = NOW()
+		WHERE
+			BBS_KND_CODE = '05'
+			AND NTT_NO = #{nttNo}
+	</update>
+
+	<!-- 감사 사례 삭제 -->
+	<delete id="deleteNotice" parameterType="RaBbsTbExVO">
+		DELETE
+		FROM
+			RA_BBS_TB
+		WHERE
+			BBS_KND_CODE = '05'
+			AND NTT_NO = #{nttNo}
+	</delete>
+
+</mapper>
